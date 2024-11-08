@@ -1,0 +1,47 @@
+{
+    "compilerOptions": {
+      // Modern JavaScript Features
+      "target": "ES6",
+      "module": "ESNext",
+      "moduleResolution": "node",
+      "lib": ["DOM", "ES6", "ES7", "ESNext"],
+      
+      // Strict Type Checking
+      "strict": true,
+      "noImplicitAny": true,
+      "strictNullChecks": true,
+      "strictFunctionTypes": true,
+      "strictBindCallApply": true,
+      "noImplicitThis": true,
+      "alwaysStrict": true,
+      
+      // Module Configuration
+      "importHelpers": true,
+      "isolatedModules": true,
+      "allowSyntheticDefaultImports": true,
+      "esModuleInterop": true,
+      
+      // Source Map & Build
+      "sourceMap": true,
+      "declaration": true,
+      "declarationMap": true,
+      "skipLibCheck": true,
+      
+      // Project Structure
+      "baseUrl": ".",
+      "paths": {
+        "@/*": ["src/*"]
+      },
+      "rootDir": "src",
+      "outDir": "dist",
+      
+      // Additional Checks
+      "noUnusedLocals": true,
+      "noUnusedParameters": true,
+      "noImplicitReturns": true,
+      "noFallthroughCasesInSwitch": true,
+      "forceConsistentCasingInFileNames": true
+    },
+    "include": ["src/**/*.ts"],
+    "exclude": ["node_modules", "dist"]
+  }

@@ -1,0 +1,22 @@
+{
+    "id": "obsidian-filler-inner",
+    "name": "Filler Inner",
+    "version": "1.0.0",
+    "minAppVersion": "1.0.0",
+    "description": "Fill your templates using AI with custom prompts.",
+    "author": "Your Name",
+    "authorUrl": "https://github.com/yourusername",
+    "fundingUrl": {
+      "Github Sponsor": "https://github.com/sponsors/yourusername",
+      "Buy Me a Coffee": "https://www.buymeacoffee.com/yourusername"
+    },
+    "isDesktopOnly": false,
+    "main": "dist/main.js",
+    "repository": "https://github.com/yourusername/obsidian-filler-inner",
+    "keywords": [
+      "obsidian-plugin",
+      "template",
+      "ai",
+      "automation"
+    ]
+  }
