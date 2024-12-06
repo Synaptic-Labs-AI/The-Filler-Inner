@@ -1,3 +1,4 @@
+
 // main.ts
 
 import { Plugin, Notice } from 'obsidian';
@@ -97,16 +98,16 @@ export default class FillerInnerPlugin extends Plugin {
      * Initializes core services like TemplateManager, LLMService, etc.
      */
     initializeServices() {
-        // Initialize TemplateManager with the templates path from settings
         this.templateManager = new TemplateManager(this.app, this.settings.paths.templatesPath);
-
-        // Initialize LLMService with LLM configuration from settings
+        
+        // Pass just the llm config to LLMService
         this.llmService = new LLMService(this.settings.llm);
-
-        // Initialize PromptOptimizer with LLMService and optimization settings
-        this.promptOptimizer = new PromptOptimizer(this.llmService, this.settings.processing.usePromptOptimization);
-
-        // Initialize FileService with the output path from settings
+        
+        this.promptOptimizer = new PromptOptimizer(
+            this.llmService, 
+            this.settings.processing.usePromptOptimization
+        );
+        
         this.fileService = new FileService(this.app, this.settings);
     }
 

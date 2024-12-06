@@ -1,15 +1,14 @@
+// src/components/settingsTab.ts
+
 /**
- * File: src/components/settings-tab.ts
+ * File: src/components/settingsTab.ts
  * Settings tab component for plugin configuration
  */
 
 import { App, PluginSettingTab, Setting } from 'obsidian';
-import { FillerInnerPlugin } from '../../main';
-import { 
-    FillerInnerSettings, 
-    LLMProvider, 
-    DEFAULT_SETTINGS 
-} from '../types/settings';
+import type FillerInnerPlugin from '../main';
+import { FillerInnerSettings, LLMProvider } from '../types/settings';
+import { AIModelUtils, AIProvider } from '../types/aiModels';
 
 export class FillerInnerSettingTab extends PluginSettingTab {
     private plugin: FillerInnerPlugin;
@@ -35,7 +34,7 @@ export class FillerInnerSettingTab extends PluginSettingTab {
 
     private addHeader(): void {
         const header = this.containerEl.createEl('div', { cls: 'settings-header' });
-        header.createEl('h2', { text: 'Filler Inner Settings' });
+        header.createEl('h2', { text: 'Filler Inner' });
         header.createEl('p', { 
             text: 'Configure how your templates are processed and filled.',
             cls: 'settings-description' 
@@ -58,12 +57,15 @@ export class FillerInnerSettingTab extends PluginSettingTab {
             .setDesc('Select your preferred Language Model provider')
             .addDropdown(dropdown => {
                 Object.values(LLMProvider).forEach(provider => {
-                    dropdown.addOption(provider, provider);
+                    dropdown.addOption(provider, this.getProviderDisplayName(provider));
                 });
                 dropdown
                     .setValue(this.settings.llm.provider)
-                    .onChange(async (value: LLMProvider) => {
-                        this.settings.llm.provider = value;
+                    .onChange(async (value) => {
+                        this.settings.llm.provider = value as LLMProvider;
+                        // Reset model to default for the new provider
+                        const defaultModel = AIModelUtils.getModelsByProvider(value as AIProvider)[0];
+                        this.settings.llm.model = defaultModel?.apiName || '';
                         await this.plugin.saveSettings();
                         this.display(); // Refresh to show/hide relevant settings
                     });
@@ -94,8 +96,9 @@ export class FillerInnerSettingTab extends PluginSettingTab {
             .setName('Model')
             .setDesc('Select the specific model to use')
             .addDropdown(dropdown => {
-                this.getAvailableModels().forEach(model => {
-                    dropdown.addOption(model, model);
+                const models = AIModelUtils.getModelsByProvider(this.settings.llm.provider as unknown as AIProvider);
+                models.forEach(model => {
+                    dropdown.addOption(model.apiName, model.displayName);
                 });
                 dropdown
                     .setValue(this.settings.llm.model)
@@ -155,13 +158,6 @@ export class FillerInnerSettingTab extends PluginSettingTab {
                     this.settings.paths.templatesPath = value;
                     await this.plugin.saveSettings();
                 })
-            )
-            .addExtraButton(button => button
-                .setIcon('folder')
-                .setTooltip('Select folder')
-                .onClick(() => {
-                    this.selectFolder('templatesPath');
-                })
             );
 
         // Output Path
@@ -174,13 +170,6 @@ export class FillerInnerSettingTab extends PluginSettingTab {
                 .onChange(async (value) => {
                     this.settings.paths.outputPath = value;
                     await this.plugin.saveSettings();
-                })
-            )
-            .addExtraButton(button => button
-                .setIcon('folder')
-                .setTooltip('Select folder')
-                .onClick(() => {
-                    this.selectFolder('outputPath');
                 })
             );
     }
@@ -273,47 +262,27 @@ export class FillerInnerSettingTab extends PluginSettingTab {
             .setName('Command Hotkey')
             .setDesc('Set a hotkey for quick access')
             .addButton(button => button
-                .setButtonText(
-                    this.settings.defaultHotkey || 'Not set'
-                )
+                .setButtonText(this.settings.defaultHotkey || 'Not set')
                 .setClass('hotkey-button')
                 .onClick(() => {
-                    // Open hotkey configuration
-                    this.app.setting.openTabById('hotkeys');
+                    this.plugin.app.commands.commands['app:open-command-palette']?.callback();
                 })
             );
     }
 
-    private async selectFolder(pathKey: 'templatesPath' | 'outputPath'): Promise<void> {
-        // Implement folder selection dialog
-        // This will depend on your specific implementation
-        // and Obsidian's API capabilities
-    }
-
     private getProviderApiKeyUrl(): string {
         const urls: Record<LLMProvider, string> = {
-            [LLMProvider.OPENAI]: 'https://platform.openai.com/account/api-keys',
-            // Add more provider URLs as needed
+            [LLMProvider.OpenRouter]: 'https://openrouter.ai/account/api-keys',
+            [LLMProvider.LMStudio]: 'https://lmstudio.example.com/account/api-keys',
         };
-        return urls[this.settings.llm.provider];
+        return urls[this.settings.llm.provider] || '';
     }
 
-    private getAvailableModels(): string[] {
-        // This could be expanded based on the selected provider
-        return [
-            'gpt-3.5-turbo',
-            'gpt-4',
-            // Add more models as needed
-        ];
-    }
-
-    private validateSettings(): boolean {
-        // Add validation logic here
-        return true;
-    }
-
-    hide(): void {
-        // Cleanup if needed
-        super.hide();
+    private getProviderDisplayName(provider: LLMProvider): string {
+        const displayNames: Record<LLMProvider, string> = {
+            [LLMProvider.OpenRouter]: 'OpenRouter',
+            [LLMProvider.LMStudio]: 'LMStudio',
+        };
+        return displayNames[provider] || provider;
     }
 }

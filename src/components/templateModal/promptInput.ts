@@ -3,13 +3,14 @@
  * Prompt input component with auto-resize and markdown support
  */
 
-import { PromptInputProps } from '../../types';
+// Remove unused import
+// import { PromptInputProps } from '../../types';
 import { debounce } from '../../utils/helpers';
 
 export class PromptInput {
     private container: HTMLElement;
-    private textarea: HTMLTextAreaElement;
-    private characterCount: HTMLElement;
+    private textarea!: HTMLTextAreaElement; // Add ! for definite assignment
+    private characterCount!: HTMLElement; // Add ! for definite assignment
     private onChangeCallback: (value: string) => void = () => {};
     private onSubmitCallback: () => void = () => {};
     

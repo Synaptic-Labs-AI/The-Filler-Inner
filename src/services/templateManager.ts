@@ -1,5 +1,5 @@
 /**
- * File: src/services/template-manager.ts
+ * File: src/services/templateManager.ts
  * Manages template discovery, loading, and caching
  */
 
@@ -18,15 +18,6 @@ export class TemplateManager {
         this.templatesPath = normalizePath(templatesPath);
         this.templateCache = new Map();
         this.lastScanTime = 0;
-    }
-
-    /**
-     * Get all available templates
-     * @returns Promise<Template[]> Array of available templates
-     */
-    async getTemplates(): Promise<Template[]> {
-        await this.updateTemplatesCacheIfNeeded();
-        return Array.from(this.templateCache.values());
     }
 
     /**
@@ -231,5 +222,14 @@ export class TemplateManager {
     clearCache(): void {
         this.templateCache.clear();
         this.lastScanTime = 0;
+    }
+
+    /**
+     * Get all available templates
+     * @returns Promise<Template[]> Array of available templates
+     */
+    async getTemplates(): Promise<Template[]> {
+        await this.updateTemplatesCacheIfNeeded();
+        return Array.from(this.templateCache.values());
     }
 }
