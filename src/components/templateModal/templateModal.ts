@@ -18,7 +18,6 @@ export class TemplateModal extends Modal {
     private selectedTemplate: Template | null = null;
     private processingStatus: ProcessingStatus = ProcessingStatus.IDLE;
     private submitButton!: HTMLButtonElement;
-    private optimizedPromptTextarea!: HTMLTextAreaElement;
 
     // Injected services
     private templateManager: TemplateManager;
@@ -52,123 +51,73 @@ export class TemplateModal extends Modal {
     }
 
     onOpen() {
-        // Set modal title with subtle animation
-        const title = this.titleEl.createEl('h2');
-        title.setText('Fill Template');
-        title.addClass('fade-in');
+        const { contentEl } = this;
+        contentEl.empty();
 
-        // Create main container with flex layout
-        const container = this.contentEl.createDiv({ cls: 'modal-container' });
+        // Set modal title
+        this.titleEl.setText('Fill Template');
 
-        // Add template selection section
-        this.createTemplateSection(container);
-
-        // Add prompt input section
-        this.createPromptSection(container);
-
-        // Add optimized prompt textarea
-        this.createOptimizedPromptSection(container);
-
-        // Add submit button
-        this.createSubmitButton(container);
-
-        // Add loading indicator
-        this.createLoadingIndicator(container);
-
-        // Initialize event listeners
-        this.initializeEventListeners();
-
-        // Load templates into dropdown
-        this.loadTemplates();
-    }
-
-    private createTemplateSection(container: HTMLElement) {
-        const templateSection = container.createDiv({ cls: 'template-section' });
-
-        new Setting(templateSection)
-            .setName('Select Template')
+        // Template Selection
+        new Setting(contentEl)
+            .setName('Template')
             .setDesc('Choose a template to fill')
             .then(setting => {
                 this.dropdown.mount(setting.controlEl);
             });
-    }
 
-    private createPromptSection(container: HTMLElement) {
-        const promptSection = container.createDiv({ cls: 'prompt-section' });
-
-        new Setting(promptSection)
-            .setName('Your Requirements')
+        // Prompt Input
+        new Setting(contentEl)
+            .setName('Requirements')
             .setDesc('Describe how you want the template to be filled')
             .then(setting => {
                 this.promptInput.mount(setting.controlEl);
             });
-    }
 
-    private createOptimizedPromptSection(container: HTMLElement) {
-        const optimizedPromptSection = container.createDiv({ cls: 'optimized-prompt-section' });
+        // Modal Footer with buttons
+        const footer = contentEl.createDiv('modal-footer');
+        
+        // Cancel button
+        footer.createEl('button', { text: 'Cancel' })
+            .addEventListener('click', () => this.close());
 
-        new Setting(optimizedPromptSection)
-            .setName('Optimized Prompt')
-            .setDesc('Review and edit the optimized prompt before submission')
-            .then(setting => {
-                // Create a separate textarea for optimized prompt
-                const textarea = setting.controlEl.createEl('textarea', {
-                    cls: 'optimized-prompt-textarea',
-                    attr: { // Move rows to attr object
-                        placeholder: 'Optimized prompt will appear here...',
-                        rows: '4',
-                        disabled: '' // Set disabled as an empty string attribute
-                    }
-                });
-                this.optimizedPromptTextarea = textarea as HTMLTextAreaElement;
-            });
-    }
-
-    private createSubmitButton(container: HTMLElement) {
-        const buttonContainer = container.createDiv({ cls: 'button-container' });
-
-        this.submitButton = buttonContainer.createEl('button', {
+        // Submit button with loading state
+        this.submitButton = footer.createEl('button', {
             text: 'Generate',
-            cls: 'mod-cta submit-button'
+            cls: 'mod-cta'
         });
+        this.submitButton.addEventListener('click', this.handleSubmit.bind(this));
 
-        // Add ripple effect on click
-        this.submitButton.addEventListener('click', this.createRippleEffect.bind(this));
+        // Initialize event listeners
+        this.initializeEventListeners();
+
+        // Load templates
+        this.loadTemplates();
     }
 
-    private createLoadingIndicator(container: HTMLElement) {
-        const loader = container.createDiv({ cls: 'loading-spinner' });
-        loader.hide();
-
-        // Use setInterval and store the interval ID
-        this.intervalId = window.setInterval(() => {
-            if (this.processingStatus === ProcessingStatus.PROCESSING) {
-                loader.show();
-                this.submitButton.setAttr('disabled', 'true');
-            } else {
-                loader.hide();
-                this.submitButton.removeAttribute('disabled');
-            }
-        }, 100);
-    }
-
-    private createRippleEffect(e: MouseEvent) {
-        const button = e.currentTarget as HTMLElement;
-        const circle = document.createElement('span');
-        const diameter = Math.max(button.clientWidth, button.clientHeight);
-        const radius = diameter / 2;
-
-        circle.style.width = circle.style.height = `${diameter}px`;
-        circle.style.left = `${e.clientX - button.offsetLeft - radius}px`;
-        circle.style.top = `${e.clientY - button.offsetTop - radius}px`;
-        circle.classList.add('ripple');
-
-        const ripple = button.getElementsByClassName('ripple')[0];
-        if (ripple) {
-            ripple.remove();
+    private async handleSubmit() {
+        if (!this.selectedTemplate || this.processingStatus === ProcessingStatus.PROCESSING) {
+            new Notice('Please select a template and enter your requirements.');
+            return;
         }
 
-        button.appendChild(circle);
+        try {
+            this.processingStatus = ProcessingStatus.PROCESSING;
+            this.submitButton.setText('Generating...');
+            this.submitButton.setAttr('disabled', '');
+
+            const filledContent = await this.processTemplate();
+            await this.fileService.createFilledFile(this.selectedTemplate!, filledContent);
+
+            new Notice('Template filled and saved successfully!');
+            this.close();
+        } catch (error) {
+            console.error('Template processing failed:', error);
+            new Notice('Failed to generate the filled template. Check console for details.');
+        } finally {
+            this.processingStatus = ProcessingStatus.IDLE;
+            this.submitButton.setText('Generate');
+            this.submitButton.removeAttribute('disabled');
+        }
     }
 
     private initializeEventListeners() {
@@ -182,8 +131,6 @@ export class TemplateModal extends Modal {
         // Handle prompt changes
         this.promptInput.onChange((value: string) => {
             this.updateSubmitButtonState();
-            // Trigger prompt optimization here
-            this.optimizePrompt(value);
         });
 
         // Handle submission
@@ -232,30 +179,19 @@ export class TemplateModal extends Modal {
         }
     }
 
-    private async optimizePrompt(userPrompt: string) {
-        if (!this.selectedTemplate) return;
-
-        try {
-            const templateContent = await this.templateManager.getTemplate(this.selectedTemplate.path);
-            const optimizedPrompt = await this.promptOptimizer.optimize(userPrompt, templateContent.toString());
-            this.optimizedPromptTextarea.value = optimizedPrompt;
-        } catch (error) {
-            console.error('Prompt optimization failed:', error);
-            new Notice('Failed to optimize prompt. Check console for details.');
-        }
-    }
-
     private async processTemplate(): Promise<string> {
         if (!this.selectedTemplate) {
             throw new Error('No template selected.');
         }
 
         const userPrompt = this.promptInput.getValue();
-        const templateContent = await this.templateManager.getTemplate(this.selectedTemplate.path);
-        const finalPrompt = this.promptOptimizer.combine(templateContent.toString(), userPrompt);
+        const templateContent = await this.templateManager.loadTemplate(this.selectedTemplate.path);
+
+        const optimizedPrompt = await this.promptOptimizer.optimize(userPrompt, templateContent);
+        const finalPrompt = this.promptOptimizer.combine(templateContent, optimizedPrompt);
 
         // Generate filled content
-        return await this.llmService.generateFilledTemplate(templateContent.toString(), finalPrompt);
+        return await this.llmService.generateFilledTemplate(templateContent, finalPrompt);
     }
 
     onClose() {
@@ -268,6 +204,14 @@ export class TemplateModal extends Modal {
         this.contentEl.empty();
         this.modalEl.removeClass('filler-inner-modal');
     }
+
+    // Remove unused methods
+    private createTemplateSection() {}
+    private createPromptSection() {}
+    private createOptimizedPromptSection() {}
+    private createSubmitButton() {}
+    private createLoadingIndicator() {}
+    private createRippleEffect() {}
 }
 
 /**

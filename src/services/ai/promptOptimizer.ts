@@ -23,19 +23,48 @@ export class PromptOptimizer {
      * @returns The optimized prompt
      */
     async optimize(userPrompt: string, templateContent: string): Promise<string> {
-        if (!this.useOptimization) {
+        console.log('[PromptOptimizer.optimize] Starting optimization with:', {
+            useOptimization: this.useOptimization,
+            hasLLMService: !!this.llmService,
+            userPrompt,
+            templateContent: typeof templateContent
+        });
+
+        if (!this.useOptimization || !this.llmService) {
             return userPrompt;
         }
 
-        // Use templateContent in optimization
-        const optimizedPrompt = `Based on template structure:\n${templateContent}\n\nOptimize this prompt:\n${userPrompt}`;
+        try {
+            // First optimize the prompt
+            const optimizedPrompt = await this.llmService.generateFilledTemplate(
+                `Please optimize this prompt to be more specific and detailed: "${userPrompt}"`, 
+                ''
+            );
+
+            // Clean the optimized prompt
+            const cleanedPrompt = this.cleanResponse(optimizedPrompt);
+
+            // Simply return the cleaned prompt here
+            return cleanedPrompt;
+        } catch (error) {
+            console.error('[PromptOptimizer.optimize] Error during optimization:', error);
+            return userPrompt;
+        }
+    }
+
+    private cleanResponse(response: string): string {
+        console.log('[PromptOptimizer.cleanResponse] Cleaning response:', response);
         
-        // Use llmService for optimization
-        if (this.llmService) {
-            return await this.llmService.generateFilledTemplate(optimizedPrompt, userPrompt);
+        const quotedMatch = response.match(/"([^"]+)"/);
+        if (quotedMatch) {
+            console.log('[PromptOptimizer.cleanResponse] Found quoted text:', quotedMatch[1]);
+            return quotedMatch[1].trim();
         }
 
-        return optimizedPrompt;
+        const firstParagraph = response.split('\n')[0];
+        const cleaned = firstParagraph.replace(/^(Here's|This is|I've created|Here is).*?:/i, '').trim();
+        console.log('[PromptOptimizer.cleanResponse] Cleaned response:', cleaned);
+        return cleaned;
     }
 
     /**
@@ -45,8 +74,25 @@ export class PromptOptimizer {
      * @returns The final prompt to send to the LLM
      */
     combine(templateContent: string, optimizedPrompt: string): string {
-        // Example: Insert the prompt into the template at a specific placeholder
-        // Adjust the placeholder as per your template's structure
-        return templateContent.replace(/{{input}}/g, optimizedPrompt);
+        if (!templateContent || !optimizedPrompt) {
+            return templateContent || optimizedPrompt || '';
+        }
+        
+        try {
+            const template = String(templateContent).trim();
+            const prompt = String(optimizedPrompt).trim();
+            
+            console.log('[PromptOptimizer.combine] Processing with:', {
+                template: template.substring(0, 100) + '...',
+                prompt: prompt.substring(0, 100) + '...'
+            });
+
+            // Don't modify the template, just return the optimized prompt
+            return prompt;
+            
+        } catch (error) {
+            console.error('[PromptOptimizer.combine] Combination failed:', error);
+            return optimizedPrompt;
+        }
     }
 }

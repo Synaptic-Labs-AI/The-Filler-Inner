@@ -35,8 +35,7 @@ export class PromptInput {
         // Create character count
         this.createCharacterCount(inputWrapper);
         
-        // Add markdown helper buttons
-        this.createMarkdownTools();
+        // Removed createMarkdownTools call
     }
     
     private createTextArea(wrapper: HTMLElement) {
@@ -71,30 +70,6 @@ export class PromptInput {
         this.updateCharacterCount();
     }
     
-    private createMarkdownTools() {
-        const toolbar = this.container.createDiv({ 
-            cls: 'markdown-toolbar' 
-        });
-        
-        const tools = [
-            { icon: 'bold', text: '**Bold**' },
-            { icon: 'italic', text: '_Italic_' },
-            { icon: 'list', text: '- List item' },
-            { icon: 'quote', text: '> Quote' }
-        ];
-        
-        tools.forEach(tool => {
-            const button = toolbar.createEl('button', {
-                cls: `toolbar-button ${tool.icon}-button`
-            });
-            
-            button.addEventListener('click', () => {
-                this.insertText(tool.text);
-                this.animateButton(button);
-            });
-        });
-    }
-    
     private autoResize() {
         // Reset height to calculate correct scrollHeight
         this.textarea.style.height = 'auto';
@@ -114,34 +89,6 @@ export class PromptInput {
         // Add visual feedback for length
         this.characterCount.classList.toggle('warning', count > 1000);
         this.characterCount.classList.toggle('error', count > 2000);
-    }
-    
-    private insertText(text: string) {
-        const start = this.textarea.selectionStart;
-        const end = this.textarea.selectionEnd;
-        const current = this.textarea.value;
-        
-        this.textarea.value = 
-            current.substring(0, start) + 
-            text + 
-            current.substring(end);
-            
-        // Maintain focus and cursor position
-        this.textarea.focus();
-        const newCursor = start + text.length;
-        this.textarea.setSelectionRange(newCursor, newCursor);
-        
-        // Trigger change events
-        this.autoResize();
-        this.updateCharacterCount();
-        this.onChangeCallback(this.textarea.value);
-    }
-    
-    private animateButton(button: HTMLElement) {
-        button.classList.add('clicked');
-        setTimeout(() => {
-            button.classList.remove('clicked');
-        }, 200);
     }
     
     getValue(): string {

@@ -60,8 +60,8 @@ export interface AIModel {
  */
 export const AIModelMap: Record<AIProvider, AIModel[]> = {
     [AIProvider.OpenRouter]: [
-        { apiName: 'gpt-3.5-turbo', displayName: 'GPT-3.5 Turbo', provider: AIProvider.OpenRouter, maxTokens: 2048 },
-        { apiName: 'gpt-4', displayName: 'GPT-4', provider: AIProvider.OpenRouter, maxTokens: 2048 }
+        { apiName: 'openai/gpt-4o-mini', displayName: 'GPT 4o Mini', provider: AIProvider.OpenRouter, maxTokens: 2048 },
+        { apiName: 'openai/gpt-4o', displayName: 'GPT-4o', provider: AIProvider.OpenRouter, maxTokens: 2048 }
     ],
     [AIProvider.LMStudio]: []
 };

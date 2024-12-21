@@ -6,7 +6,7 @@
  */
 
 import { App, PluginSettingTab, Setting } from 'obsidian';
-import type FillerInnerPlugin from '../main';
+import type FillerInnerPlugin from '../../main';  // Updated import path
 import { FillerInnerSettings, LLMProvider } from '../types/settings';
 import { AIModelUtils, AIProvider } from '../types/aiModels';
 
@@ -265,7 +265,8 @@ export class FillerInnerSettingTab extends PluginSettingTab {
                 .setButtonText(this.settings.defaultHotkey || 'Not set')
                 .setClass('hotkey-button')
                 .onClick(() => {
-                    this.plugin.app.commands.commands['app:open-command-palette']?.callback();
+                    // Open Obsidian hotkeys settings
+                    (this.app as any).setting.open('hotkeys');
                 })
             );
     }

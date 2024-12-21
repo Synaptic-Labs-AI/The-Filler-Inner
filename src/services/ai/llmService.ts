@@ -72,36 +72,43 @@ export class LLMService {
      * @returns A promise that resolves to the filled template content
      */
     public async generateFilledTemplate(templateContent: string, userPrompt: string): Promise<string> {
+        console.log('[LLMService.generateFilledTemplate] Input:', {
+            templateContent,
+            userPrompt
+        });
+
         if (!this.adapter) {
             throw new Error('LLM Adapter is not initialized.');
         }
 
         try {
-            // Optimize the prompt if enabled
-            let finalPrompt = userPrompt;
-            if (this.settings.processing.usePromptOptimization) {
-                // Assuming PromptOptimizer has an optimize method
-                // Replace with actual prompt optimization logic
-                finalPrompt = `${this.settings.processing.defaultPromptTemplate}${userPrompt}`;
-            }
+            // Create a more structured prompt that clearly separates template and instructions
+            const finalPrompt = `Here is a template to fill out:
+---BEGIN TEMPLATE---
+${templateContent}
+---END TEMPLATE---
+
+Using these detailed instructions:
+${userPrompt}
+
+Please fill out the template above following these instructions. Preserve the template's structure and formatting while incorporating the details from the instructions.`;
+
+            console.log('[LLMService.generateFilledTemplate] Sending prompt:', finalPrompt);
 
             const response: AIResponse = await this.adapter.generateResponse(finalPrompt, {
-                temperature: this.config.temperature,
-                maxTokens: this.config.maxTokens,
+                temperature: this.config.temperature || 0.7,
+                maxTokens: this.config.maxTokens || 2048,
                 model: this.config.model
             });
 
-            if (response.success && typeof response.data === 'string') {
-                // Replace placeholders in the template with the generated content
-                // For example, replace {{input}} with the generated text
-                const filledTemplate = templateContent.replace(/{{input}}/g, response.data);
-                return filledTemplate;
-            } else {
-                throw new Error(response.error || 'Failed to generate filled template.');
+            if (!response.success || !response.data) {
+                throw new Error(response.error || 'Failed to generate response');
             }
+
+            return String(response.data).trim();
         } catch (error: any) {
-            console.error('LLM Service Error:', error);
-            throw new Error(error.message || 'An error occurred while generating the filled template.');
+            console.error('[LLMService.generateFilledTemplate] Generation error:', error);
+            throw new Error(`Failed to generate content: ${error.message}`);
         }
     }
 

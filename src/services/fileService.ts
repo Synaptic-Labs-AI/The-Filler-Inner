@@ -7,8 +7,7 @@
 
 import { App, TFolder, normalizePath, Notice } from 'obsidian';
 import { Template } from '../types';
-import { DEFAULT_SETTINGS } from '@/types/settings';
-import { FillerInnerSettings } from '@/types/settings';
+import { FillerInnerSettings } from '../types/settings';
 
 export class FileService {
     private app: App;
