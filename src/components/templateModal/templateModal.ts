@@ -5,12 +5,13 @@ import { TemplateDropdown } from './templateDropdown';
 import { PromptInput } from './promptInput';
 import { TemplateManager } from '../../services/templateManager';
 import { LLMService } from '../../services/ai/llmService';
-import { PromptOptimizer } from '../../services/ai/promptOptimizer'; // Fix import path
+import { PromptOptimizer } from '../../services/ai/promptOptimizer';
 import { FileService } from '../../services/fileService';
 import { Template } from '../../types';
 
 /**
  * TemplateModal handles the UI and workflow for selecting and filling templates.
+ * It provides a sleek interface for template selection, requirement input, and generation.
  */
 export class TemplateModal extends Modal {
     private dropdown: TemplateDropdown;
@@ -25,8 +26,9 @@ export class TemplateModal extends Modal {
     private promptOptimizer: PromptOptimizer;
     private fileService: FileService;
 
-    // Add a private property to store the interval ID
+    // Animation properties
     private intervalId: number | null = null;
+    private rippleTimeout: number | null = null;
 
     constructor(
         app: App,
@@ -54,14 +56,15 @@ export class TemplateModal extends Modal {
         const { contentEl } = this;
         contentEl.empty();
 
-        // Set modal title
-        this.titleEl.setText('Fill Template');
+        // Set modal title with emoji
+        this.titleEl.setText('✨ Fill Template');
 
         // Template Selection
         new Setting(contentEl)
             .setName('Template')
             .setDesc('Choose a template to fill')
             .then(setting => {
+                setting.settingEl.addClass('template-setting');
                 this.dropdown.mount(setting.controlEl);
             });
 
@@ -70,20 +73,24 @@ export class TemplateModal extends Modal {
             .setName('Requirements')
             .setDesc('Describe how you want the template to be filled')
             .then(setting => {
+                setting.settingEl.addClass('prompt-setting');
                 this.promptInput.mount(setting.controlEl);
             });
 
         // Modal Footer with buttons
         const footer = contentEl.createDiv('modal-footer');
         
-        // Cancel button
-        footer.createEl('button', { text: 'Cancel' })
-            .addEventListener('click', () => this.close());
+        // Cancel button with hover effect
+        const cancelBtn = footer.createEl('button', { 
+            text: 'Cancel',
+            cls: 'cancel-button' 
+        });
+        cancelBtn.addEventListener('click', () => this.close());
 
-        // Submit button with loading state
+        // Submit button with loading state and ripple effect
         this.submitButton = footer.createEl('button', {
             text: 'Generate',
-            cls: 'mod-cta'
+            cls: 'mod-cta submit-button'
         });
         this.submitButton.addEventListener('click', this.handleSubmit.bind(this));
 
@@ -94,73 +101,75 @@ export class TemplateModal extends Modal {
         this.loadTemplates();
     }
 
-    private async handleSubmit() {
-        if (!this.selectedTemplate || this.processingStatus === ProcessingStatus.PROCESSING) {
-            new Notice('Please select a template and enter your requirements.');
-            return;
-        }
-
-        try {
-            this.processingStatus = ProcessingStatus.PROCESSING;
-            this.submitButton.setText('Generating...');
-            this.submitButton.setAttr('disabled', '');
-
-            const filledContent = await this.processTemplate();
-            await this.fileService.createFilledFile(this.selectedTemplate!, filledContent);
-
-            new Notice('Template filled and saved successfully!');
-            this.close();
-        } catch (error) {
-            console.error('Template processing failed:', error);
-            new Notice('Failed to generate the filled template. Check console for details.');
-        } finally {
-            this.processingStatus = ProcessingStatus.IDLE;
-            this.submitButton.setText('Generate');
-            this.submitButton.removeAttribute('disabled');
-        }
-    }
-
     private initializeEventListeners() {
         // Handle template selection
         this.dropdown.onSelect((template: Template) => {
             this.selectedTemplate = template;
             this.updateSubmitButtonState();
-            // Optionally, load the template content if needed for prompt optimization
+            // Add ripple effect to the select element
+            const selectEl = this.contentEl.querySelector('.template-select');
+            if (selectEl) {
+                this.addRippleEffect(selectEl as HTMLElement);
+            }
         });
 
         // Handle prompt changes
         this.promptInput.onChange((value: string) => {
             this.updateSubmitButtonState();
         });
+    }
 
-        // Handle submission
-        this.submitButton.addEventListener('click', async () => {
-            if (!this.selectedTemplate || this.processingStatus === ProcessingStatus.PROCESSING) {
-                new Notice('Please select a template and enter your requirements.');
-                return;
+    private async handleSubmit() {
+        if (this.processingStatus === ProcessingStatus.PROCESSING) {
+            return;
+        }
+
+        if (!this.selectedTemplate) {
+            new Notice('🎯 Please select a template first');
+            return;
+        }
+
+        if (!this.promptInput.getValue().trim()) {
+            new Notice('✍️ Please enter your requirements');
+            return;
+        }
+
+        try {
+            this.processingStatus = ProcessingStatus.PROCESSING;
+            
+            // Update button state with loading animation
+            this.submitButton.empty();
+            const loadingContainer = this.submitButton.createSpan({cls: 'loading-container'});
+            loadingContainer.createSpan({text: 'Generating', cls: 'loading-text'});
+            const dotsContainer = loadingContainer.createSpan({cls: 'loading-dots'});
+            
+            // Animated loading dots
+            this.intervalId = window.setInterval(() => {
+                const currentDots = dotsContainer.textContent || '';
+                dotsContainer.textContent = currentDots.length >= 3 ? '' : currentDots + '.';
+            }, 500);
+            
+            this.submitButton.disabled = true;
+            this.addRippleEffect(this.submitButton);
+
+            const filledContent = await this.processTemplate();
+            await this.fileService.createFilledFile(this.selectedTemplate!, filledContent);
+
+            new Notice('✨ Template filled and saved successfully!');
+            this.close();
+        } catch (error) {
+            console.error('🚨 Template processing failed:', error);
+            new Notice('❌ Failed to generate the filled template. Check console for details.');
+        } finally {
+            if (this.intervalId) {
+                window.clearInterval(this.intervalId);
+                this.intervalId = null;
             }
-
-            try {
-                this.processingStatus = ProcessingStatus.PROCESSING;
-                // Trigger processing animation (handled by loading indicator)
-
-                // Generate the filled template
-                const filledContent = await this.processTemplate();
-
-                // Save the filled template to the output path
-                await this.fileService.createFilledFile(this.selectedTemplate!, filledContent);
-
-                new Notice('Template filled and saved successfully!');
-                this.processingStatus = ProcessingStatus.COMPLETE;
-                this.close();
-            } catch (error) {
-                console.error('Template processing failed:', error);
-                new Notice('Failed to generate the filled template. Check console for details.');
-                this.processingStatus = ProcessingStatus.ERROR;
-            } finally {
-                this.processingStatus = ProcessingStatus.IDLE;
-            }
-        });
+            this.processingStatus = ProcessingStatus.IDLE;
+            this.submitButton.empty();
+            this.submitButton.setText('Generate');
+            this.submitButton.disabled = false;
+        }
     }
 
     private updateSubmitButtonState() {
@@ -169,13 +178,24 @@ export class TemplateModal extends Modal {
         this.submitButton.disabled = !isReady;
     }
 
+    private addRippleEffect(element: HTMLElement) {
+        const ripple = element.createDiv('ripple');
+        const rect = element.getBoundingClientRect();
+        
+        ripple.style.left = '50%';
+        ripple.style.top = '50%';
+        
+        // Remove ripple after animation
+        setTimeout(() => ripple.remove(), 600);
+    }
+
     private async loadTemplates() {
         try {
             const templates = await this.templateManager.getTemplates();
             this.dropdown.setTemplates(templates);
         } catch (error) {
-            console.error('Failed to load templates:', error);
-            new Notice('Failed to load templates. Check console for details.');
+            console.error('📚 Failed to load templates:', error);
+            new Notice('❌ Failed to load templates. Check console for details.');
         }
     }
 
@@ -190,28 +210,21 @@ export class TemplateModal extends Modal {
         const optimizedPrompt = await this.promptOptimizer.optimize(userPrompt, templateContent);
         const finalPrompt = this.promptOptimizer.combine(templateContent, optimizedPrompt);
 
-        // Generate filled content
         return await this.llmService.generateFilledTemplate(templateContent, finalPrompt);
     }
 
     onClose() {
-        // Clear the interval when the modal is closed
         if (this.intervalId !== null) {
             window.clearInterval(this.intervalId);
             this.intervalId = null;
         }
-        // Cleanup
+        if (this.rippleTimeout !== null) {
+            window.clearTimeout(this.rippleTimeout);
+            this.rippleTimeout = null;
+        }
         this.contentEl.empty();
         this.modalEl.removeClass('filler-inner-modal');
     }
-
-    // Remove unused methods
-    private createTemplateSection() {}
-    private createPromptSection() {}
-    private createOptimizedPromptSection() {}
-    private createSubmitButton() {}
-    private createLoadingIndicator() {}
-    private createRippleEffect() {}
 }
 
 /**

@@ -56,9 +56,10 @@ export class FillerInnerSettingTab extends PluginSettingTab {
             .setName('LLM Provider')
             .setDesc('Select your preferred Language Model provider')
             .addDropdown(dropdown => {
-                Object.values(LLMProvider).forEach(provider => {
-                    dropdown.addOption(provider, this.getProviderDisplayName(provider));
-                });
+                // Add providers explicitly to avoid enum value duplicates
+                dropdown.addOption(AIProvider.OpenRouter, 'OpenRouter');
+                dropdown.addOption(AIProvider.LMStudio, 'LMStudio');
+                
                 dropdown
                     .setValue(this.settings.llm.provider)
                     .onChange(async (value) => {
